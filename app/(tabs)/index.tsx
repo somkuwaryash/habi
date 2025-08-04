@@ -1,14 +1,39 @@
+import { useState, useEffect, useMemo } from 'react';
 import { StyleSheet, TextInput, FlatList, TouchableOpacity, View, useColorScheme, Appearance } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import HabitItem from '@/components/HabitItem';
+import { Habit } from '@/app/types';
 import { useHabits } from '@/hooks/useHabits';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import CalendarStrip from 'react-native-calendar-strip';
 
 export default function HomeScreen() {
-  const { habits, newHabit, setNewHabit, editingHabitId, editedHabitName, setEditedHabitName, addHabit, toggleHabit, deleteHabit, startEditingHabit, saveEditedHabit, cancelEditingHabit } = useHabits();
+  const {
+    habits,
+    newHabit,
+    setNewHabit,
+    editingHabitId,
+    editedHabitName,
+    setEditedHabitName,
+    addHabit,
+    toggleHabit,
+    deleteHabit,
+    startEditingHabit,
+    saveEditedHabit,
+    cancelEditingHabit,
+  } = useHabits();
+
   const colorScheme = useColorScheme();
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const filteredHabits = useMemo(() => {
+    // Reverting to show all habits as per user's request.
+    // Future iterations will implement more complex frequency logic.
+    return habits;
+  }, [habits, selectedDate]);
 
   const toggleTheme = () => {
     const newColorScheme = colorScheme === 'dark' ? 'light' : 'dark';
@@ -28,14 +53,28 @@ export default function HomeScreen() {
             />
           </TouchableOpacity>
         </ThemedView>
-        <View style={styles.inputContainer}>
+
+        <CalendarStrip
+          scrollable
+          style={{ height: 100, paddingTop: 10, paddingBottom: 10 }}
+          calendarHeaderStyle={{ color: colorScheme === 'dark' ? 'white' : 'black' }}
+          dateNumberStyle={{ color: colorScheme === 'dark' ? 'white' : 'black' }}
+          dateNameStyle={{ color: colorScheme === 'dark' ? 'white' : 'black' }}
+          highlightDateNumberStyle={{ color: '#007bff' }}
+          highlightDateNameStyle={{ color: '#007bff' }}
+          onDateSelected={(date: any) => setSelectedDate(date.toDate())}
+          selectedDate={selectedDate}
+          iconContainer={{ flex: 0.1 }}
+        />
+
+        <ThemedView style={styles.inputContainer}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: colorScheme === 'dark' ? 'white' : 'black' }]}
             placeholder="Add a new habit..."
             value={newHabit}
             onChangeText={setNewHabit}
             onSubmitEditing={addHabit}
-            placeholderTextColor={colorScheme === 'dark' ? 'gray' : 'darkgray'} // Set placeholder color based on theme
+            placeholderTextColor={colorScheme === 'dark' ? 'gray' : 'darkgray'}
           />
           {newHabit.length > 0 && (
             <TouchableOpacity onPress={() => setNewHabit('')} style={styles.clearButton}>
@@ -45,9 +84,10 @@ export default function HomeScreen() {
           <TouchableOpacity onPress={addHabit} style={styles.addButton}>
             <ThemedText style={styles.addButtonText}>Add</ThemedText>
           </TouchableOpacity>
-        </View>
+        </ThemedView>
+
         <FlatList
-          data={habits}
+          data={filteredHabits}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <HabitItem
@@ -65,6 +105,7 @@ export default function HomeScreen() {
           ListEmptyComponent={
             <ThemedText style={styles.emptyListText}>No habits yet. Add one!</ThemedText>
           }
+          contentContainerStyle={styles.listContentContainer}
         />
       </ThemedView>
     </SafeAreaView>
@@ -77,7 +118,8 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
   headerContainer: {
     flexDirection: 'row',
@@ -88,42 +130,44 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    textAlign: 'center',
   },
   themeToggle: {
     padding: 5,
   },
   inputContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 10,
   },
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 10,
-    marginRight: 10,
-    backgroundColor: '#fff',
-    color: '#000', // Ensure text color is black for light mode
+    height: 40,
   },
   addButton: {
     backgroundColor: '#007bff',
-    padding: 10,
-    borderRadius: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    marginLeft: 10,
   },
   addButtonText: {
-    color: '#fff',
+    color: 'white',
     fontWeight: 'bold',
   },
   clearButton: {
-    justifyContent: 'center',
-    paddingHorizontal: 5,
+    padding: 5,
+  },
+  listContentContainer: {
+    flexGrow: 1,
   },
   emptyListText: {
     textAlign: 'center',
     marginTop: 50,
+    fontSize: 16,
+    color: 'gray',
   },
 });

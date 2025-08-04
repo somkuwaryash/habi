@@ -35,7 +35,15 @@ export const useHabits = () => {
 
   const addHabit = () => {
     if (newHabit.trim()) {
-      setHabits([...habits, { id: Date.now().toString(), name: newHabit.trim(), completed: false }]);
+      setHabits([
+        ...habits,
+        {
+          id: Date.now().toString(),
+          name: newHabit.trim(),
+          completed: false,
+          createdAt: new Date().toISOString(), // Add createdAt property
+        },
+      ]);
       setNewHabit('');
     }
   };

@@ -46,6 +46,8 @@ export default function RootLayout() {
         ) : (
           <Stack.Screen name="onboarding" />
         )}
+        {/* Explicitly show header for habit-details screen */}
+        <Stack.Screen name="habit-details/[id]" options={{ headerShown: true, title: 'Habit Stats' }} />
         <Stack.Screen name="+not-found" />
       </Stack>
     </ThemeProvider>

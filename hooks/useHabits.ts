@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Habit } from '@/app/types';
+import { Habit } from '@/app/constants/types';
 
 export const useHabits = () => {
   const [habits, setHabits] = useState<Habit[]>([]);

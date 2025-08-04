@@ -5,7 +5,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import HabitItem from '@/components/HabitItem';
-import { Habit } from '@/app/types';
+import { Habit } from '@/app/constants/types';
 import { useHabits } from '@/hooks/useHabits';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CalendarStrip from 'react-native-calendar-strip';
@@ -90,17 +90,7 @@ export default function HomeScreen() {
           data={filteredHabits}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <HabitItem
-              item={item}
-              toggleHabit={toggleHabit}
-              deleteHabit={deleteHabit}
-              editingHabitId={editingHabitId}
-              editedHabitName={editedHabitName}
-              setEditedHabitName={setEditedHabitName}
-              saveEditedHabit={saveEditedHabit}
-              cancelEditingHabit={cancelEditingHabit}
-              startEditingHabit={startEditingHabit}
-            />
+            <HabitItem item={item} />
           )}
           ListEmptyComponent={
             <ThemedText style={styles.emptyListText}>No habits yet. Add one!</ThemedText>

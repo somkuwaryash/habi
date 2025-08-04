@@ -3,6 +3,8 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -12,18 +14,40 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [isAppReady, setIsAppReady] = useState(false);
+
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      try {
+        const value = await AsyncStorage.getItem('onboardingComplete');
+        if (value === 'true') {
+          setOnboardingComplete(true);
+        }
+      } catch (e) {
+        console.error('Failed to load onboarding status from AsyncStorage', e);
+      } finally {
+        setIsAppReady(true);
+      }
+    };
+    checkOnboardingStatus();
+  }, []);
+
+  if (!loaded || !isAppReady) {
+    return null; // Or a custom loading screen
   }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      <Stack screenOptions={{ headerShown: false }}>
+        {onboardingComplete ? (
+          <Stack.Screen name="(tabs)" />
+        ) : (
+          <Stack.Screen name="onboarding" />
+        )}
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style="auto" />
     </ThemeProvider>
   );
 }

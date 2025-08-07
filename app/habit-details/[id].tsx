@@ -4,6 +4,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import CalendarStats from '@/components/CalendarStats';
 
 export default function HabitDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -13,7 +14,7 @@ export default function HabitDetailsScreen() {
       <ThemedView style={styles.container}>
         <ThemedText type="title">Habit Details</ThemedText>
         <ThemedText>Habit ID: {id}</ThemedText>
-        {/* Future: Add detailed statistics here */}
+        <CalendarStats habitId={id as string} />
       </ThemedView>
     </SafeAreaView>
   );

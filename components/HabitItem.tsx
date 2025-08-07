@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from './ThemedText';
 import { Habit } from '@/app/constants/types';
@@ -30,6 +31,13 @@ const HabitItem: React.FC<HabitItemProps> = ({
   setEditedHabitName,
 }) => {
   const isEditing = editingHabitId === item.id;
+  const router = useRouter();
+
+  const handlePress = () => {
+    if (!isEditing) {
+      router.push(`/habit-details/${item.id}`);
+    }
+  };
 
   return (
     <View style={[styles.habitItem, {
@@ -54,9 +62,11 @@ const HabitItem: React.FC<HabitItemProps> = ({
           autoFocus
         />
       ) : (
-        <ThemedText style={[styles.habitText, item.completed && styles.completedHabitText]}>
-          {item.name}
-        </ThemedText>
+        <TouchableOpacity onPress={handlePress} style={{ flex: 1 }}>
+          <ThemedText style={[styles.habitText, item.completed && styles.completedHabitText]}>
+            {item.name}
+          </ThemedText>
+        </TouchableOpacity>
       )}
 
       <View style={styles.actionsContainer}>

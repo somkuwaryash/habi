@@ -58,9 +58,9 @@ export const useHabits = () => {
     setHabits(habits.filter(habit => habit.id !== id));
   };
 
-  const startEditingHabit = (habit: Habit) => {
-    setEditingHabitId(habit.id);
-    setEditedHabitName(habit.name);
+  const startEditingHabit = (id: string, name: string) => {
+    setEditingHabitId(id);
+    setEditedHabitName(name);
   };
 
   const saveEditedHabit = () => {

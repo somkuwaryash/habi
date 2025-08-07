@@ -26,7 +26,8 @@ export default function HomeScreen() {
     cancelEditingHabit,
   } = useHabits();
 
-  const colorScheme = useColorScheme();
+  const systemColorScheme = useColorScheme();
+  const [appColorScheme, setAppColorScheme] = useState(systemColorScheme);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const filteredHabits = useMemo(() => {
@@ -35,9 +36,37 @@ export default function HomeScreen() {
     return habits;
   }, [habits, selectedDate]);
 
+  useEffect(() => {
+    const loadColorScheme = async () => {
+      try {
+        const savedColorScheme = await AsyncStorage.getItem('appColorScheme');
+        if (savedColorScheme) {
+          setAppColorScheme(savedColorScheme as 'light' | 'dark');
+        } else {
+          setAppColorScheme(systemColorScheme);
+        }
+      } catch (error) {
+        console.error('Failed to load color scheme from AsyncStorage', error);
+        setAppColorScheme(systemColorScheme);
+      }
+    };
+    loadColorScheme();
+  }, [systemColorScheme]);
+
+  useEffect(() => {
+    const saveColorScheme = async () => {
+      try {
+        await AsyncStorage.setItem('appColorScheme', appColorScheme || '');
+      } catch (error) {
+        console.error('Failed to save color scheme to AsyncStorage', error);
+      }
+    };
+    saveColorScheme();
+  }, [appColorScheme]);
+
   const toggleTheme = () => {
-    const newColorScheme = colorScheme === 'dark' ? 'light' : 'dark';
-    Appearance.setColorScheme(newColorScheme);
+    const newColorScheme = appColorScheme === 'dark' ? 'light' : 'dark';
+    setAppColorScheme(newColorScheme);
   };
 
   return (
@@ -47,9 +76,9 @@ export default function HomeScreen() {
           <ThemedText type="title" style={styles.title}>My Habits</ThemedText>
           <TouchableOpacity onPress={toggleTheme} style={styles.themeToggle}>
             <Ionicons
-              name={colorScheme === 'dark' ? 'sunny' : 'moon'}
+              name={appColorScheme === 'dark' ? 'sunny' : 'moon'}
               size={24}
-              color={colorScheme === 'dark' ? 'orange' : 'black'}
+              color={appColorScheme === 'dark' ? '#FFC107' : '#E65100'}
             />
           </TouchableOpacity>
         </ThemedView>
@@ -57,28 +86,35 @@ export default function HomeScreen() {
         <CalendarStrip
           scrollable
           style={{ height: 100, paddingTop: 10, paddingBottom: 10 }}
-          calendarHeaderStyle={{ color: colorScheme === 'dark' ? 'white' : 'black' }}
-          dateNumberStyle={{ color: colorScheme === 'dark' ? 'white' : 'black' }}
-          dateNameStyle={{ color: colorScheme === 'dark' ? 'white' : 'black' }}
-          highlightDateNumberStyle={{ color: '#007bff' }}
-          highlightDateNameStyle={{ color: '#007bff' }}
+          calendarColor={appColorScheme === 'dark' ? '#3E2723' : '#FFF3E0'}
+          highlightDateNumberStyle={{ color: '#FF9800' }}
           onDateSelected={(date: any) => setSelectedDate(date.toDate())}
           selectedDate={selectedDate}
           iconContainer={{ flex: 0.1 }}
+          dateNumberStyle={{ color: appColorScheme === 'dark' ? '#FFE0B2' : '#5D4037' }}
+          dateNameStyle={{ color: appColorScheme === 'dark' ? '#FFE0B2' : '#5D4037' }}
+          calendarHeaderStyle={{ color: appColorScheme === 'dark' ? '#FFE0B2' : '#5D4037' }}
         />
 
-        <ThemedView style={styles.inputContainer}>
+        <ThemedView style={[styles.inputContainer, {
+          backgroundColor: appColorScheme === 'dark' ? '#4E342E' : '#FFF8E1',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 5,
+          elevation: 5,
+        }]}>
           <TextInput
-            style={[styles.input, { color: colorScheme === 'dark' ? 'white' : 'black' }]}
+            style={[styles.input, { color: appColorScheme === 'dark' ? 'white' : 'black' }]}
             placeholder="Add a new habit..."
             value={newHabit}
             onChangeText={setNewHabit}
             onSubmitEditing={addHabit}
-            placeholderTextColor={colorScheme === 'dark' ? 'gray' : 'darkgray'}
+            placeholderTextColor={appColorScheme === 'dark' ? '#A1887F' : '#8D6E63'}
           />
           {newHabit.length > 0 && (
             <TouchableOpacity onPress={() => setNewHabit('')} style={styles.clearButton}>
-              <Ionicons name="close-circle" size={24} color="gray" />
+              <Ionicons name="close-circle" size={24} color="#A1887F" />
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={addHabit} style={styles.addButton}>
@@ -90,10 +126,21 @@ export default function HomeScreen() {
           data={filteredHabits}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <HabitItem item={item} />
+            <HabitItem
+              item={item}
+              toggleHabit={toggleHabit}
+              deleteHabit={deleteHabit}
+              startEditingHabit={startEditingHabit}
+              saveEditedHabit={saveEditedHabit}
+              cancelEditingHabit={cancelEditingHabit}
+              editingHabitId={editingHabitId}
+              editedHabitName={editedHabitName}
+              setEditedHabitName={setEditedHabitName}
+              appColorScheme={appColorScheme}
+            />
           )}
           ListEmptyComponent={
-            <ThemedText style={styles.emptyListText}>No habits yet. Add one!</ThemedText>
+            <ThemedText style={[styles.emptyListText, { color: appColorScheme === 'dark' ? '#A1887F' : '#8D6E63' }]}>No habits yet. Add one!</ThemedText>
           }
           contentContainerStyle={styles.listContentContainer}
         />
@@ -128,22 +175,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 10,
+    borderRadius: 12,
+    paddingHorizontal: 15,
   },
   input: {
     flex: 1,
     height: 40,
   },
   addButton: {
-    backgroundColor: '#007bff',
+    backgroundColor: '#FF9800',
     paddingVertical: 10,
     paddingHorizontal: 15,
-    borderRadius: 8,
+    borderRadius: 12,
     marginLeft: 10,
   },
+
   addButtonText: {
     color: 'white',
     fontWeight: 'bold',

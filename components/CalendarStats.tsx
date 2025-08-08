@@ -2,13 +2,21 @@ import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { useHabits } from '@/hooks/useHabits';
+import { HabitCompletion } from '@/app/constants/types';
 
 interface CalendarStatsProps {
   habitId: string;
-  completedDates?: string[]; // YYYY-MM-DD format
 }
 
-const CalendarStats: React.FC<CalendarStatsProps> = ({ habitId, completedDates = [] }) => {
+const CalendarStats: React.FC<CalendarStatsProps> = ({ habitId }) => {
+  const { habitCompletions } = useHabits();
+
+  const completedDatesForHabit = useMemo(() => {
+    return habitCompletions
+      .filter((completion) => completion.habitId === habitId)
+      .map((completion) => completion.date);
+  }, [habitCompletions, habitId]);
   const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   const today = useMemo(() => new Date(), []);
@@ -40,8 +48,8 @@ const CalendarStats: React.FC<CalendarStatsProps> = ({ habitId, completedDates =
   }, [daysInCurrentMonth, firstDayOfMonth]);
 
   const formattedCompletedDates = useMemo(() => {
-    return new Set(completedDates.map(date => new Date(date).toDateString()));
-  }, [completedDates]);
+    return new Set(completedDatesForHabit.map(date => new Date(date).toDateString()));
+  }, [completedDatesForHabit]);
 
   const isDayCompleted = (day: number | null) => {
     if (day === null) return false;
@@ -96,7 +104,7 @@ const CalendarStats: React.FC<CalendarStatsProps> = ({ habitId, completedDates =
     return tempStreak;
   };
 
-  const currentStreak = calculateCurrentStreak(completedDates);
+  const currentStreak = calculateCurrentStreak(completedDatesForHabit);
 
   const monthName = today.toLocaleString('default', { month: 'long' });
 

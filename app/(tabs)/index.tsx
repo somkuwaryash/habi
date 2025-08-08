@@ -24,6 +24,7 @@ export default function HomeScreen() {
     startEditingHabit,
     saveEditedHabit,
     cancelEditingHabit,
+    habitCompletions,
   } = useHabits();
 
   const systemColorScheme = useColorScheme();
@@ -137,6 +138,8 @@ export default function HomeScreen() {
               editedHabitName={editedHabitName}
               setEditedHabitName={setEditedHabitName}
               appColorScheme={appColorScheme}
+              selectedDate={selectedDate.toISOString().split('T')[0]}
+              habitCompletions={habitCompletions}
             />
           )}
           ListEmptyComponent={

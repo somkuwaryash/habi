@@ -3,11 +3,13 @@ import { View, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from './ThemedText';
-import { Habit } from '@/app/constants/types';
+import { Habit, HabitCompletion } from '@/app/constants/types';
 
 interface HabitItemProps {
   item: Habit;
-  toggleHabit: (id: string) => void;
+  toggleHabit: (id: string, date: string) => void;
+  selectedDate: string;
+  habitCompletions: HabitCompletion[];
   deleteHabit: (id: string) => void;
   startEditingHabit: (id: string, name: string) => void;
   saveEditedHabit: (id: string) => void;
@@ -29,7 +31,12 @@ const HabitItem: React.FC<HabitItemProps> = ({
   editedHabitName,
   appColorScheme,
   setEditedHabitName,
+  selectedDate,
+  habitCompletions,
 }) => {
+  const isCompleted = habitCompletions.some(
+    (completion) => completion.habitId === item.id && completion.date === selectedDate
+  );
   const isEditing = editingHabitId === item.id;
   const router = useRouter();
 
@@ -44,11 +51,11 @@ const HabitItem: React.FC<HabitItemProps> = ({
       backgroundColor: appColorScheme === 'dark' ? '#5D4037' : '#FFF8E1',
       shadowColor: appColorScheme === 'dark' ? '#FFCC80' : '#8D6E63',
     }]}>
-      <TouchableOpacity onPress={() => toggleHabit(item.id)} style={styles.checkbox}>
+      <TouchableOpacity onPress={() => toggleHabit(item.id, selectedDate)} style={styles.checkbox}>
         <Ionicons
-          name={item.completed ? 'checkbox-outline' : 'square-outline'}
+          name={isCompleted ? 'checkbox-outline' : 'square-outline'}
           size={24}
-          color={item.completed ? '#FF9800' : (appColorScheme === 'dark' ? '#FFE0B2' : '#5D4037')}
+          color={isCompleted ? '#FF9800' : (appColorScheme === 'dark' ? '#FFE0B2' : '#5D4037')}
         />
       </TouchableOpacity>
 
@@ -63,7 +70,7 @@ const HabitItem: React.FC<HabitItemProps> = ({
         />
       ) : (
         <TouchableOpacity onPress={handlePress} style={{ flex: 1 }}>
-          <ThemedText style={[styles.habitText, item.completed && styles.completedHabitText]}>
+          <ThemedText style={[styles.habitText, isCompleted && styles.completedHabitText]}>
             {item.name}
           </ThemedText>
         </TouchableOpacity>

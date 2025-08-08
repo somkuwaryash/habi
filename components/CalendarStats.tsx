@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useHabits } from '@/hooks/useHabits';
-import { HabitCompletion } from '@/app/constants/types';
+import { HabitCompletion } from '@/src/types/types';
 
 interface CalendarStatsProps {
   habitId: string;

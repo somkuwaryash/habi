@@ -1,19 +1,51 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, useColorScheme, Appearance } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Link } from 'expo-router';
 
 export default function Walkthrough2Screen() {
+  const systemColorScheme = useColorScheme();
+  const [appColorScheme, setAppColorScheme] = useState(systemColorScheme);
+
+  useEffect(() => {
+    const loadColorScheme = async () => {
+      try {
+        const savedColorScheme = await AsyncStorage.getItem('appColorScheme');
+        if (savedColorScheme) {
+          setAppColorScheme(savedColorScheme as 'light' | 'dark');
+        } else {
+          setAppColorScheme(systemColorScheme);
+        }
+      } catch (error) {
+        console.error('Failed to load color scheme from AsyncStorage', error);
+        setAppColorScheme(systemColorScheme);
+      }
+    };
+    loadColorScheme();
+  }, [systemColorScheme]);
+
+  useEffect(() => {
+    const saveColorScheme = async () => {
+      try {
+        await AsyncStorage.setItem('appColorScheme', appColorScheme || '');
+      } catch (error) {
+        console.error('Failed to save color scheme to AsyncStorage', error);
+      }
+    };
+    saveColorScheme();
+  }, [appColorScheme]);
+
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>AI-Powered Insights</ThemedText>
-      <ThemedText style={styles.description}>
+    <ThemedView style={[styles.container, { backgroundColor: appColorScheme === 'dark' ? '#121212' : '#F5F5DC' }]}>
+      <ThemedText type="title" style={[styles.title, { color: appColorScheme === 'dark' ? '#FFD700' : '#8B4513' }]}>AI-Powered Insights</ThemedText>
+      <ThemedText style={[styles.description, { color: appColorScheme === 'dark' ? '#D3D3D3' : '#696969' }]}>
         Gain valuable insights into your habits with intelligent analytics.
         Understand your progress and identify areas for improvement.
       </ThemedText>
       <Link href="/onboarding/walkthrough3" asChild>
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity style={[styles.button, { backgroundColor: appColorScheme === 'dark' ? '#FF8C00' : '#FF4500' }]}>
           <ThemedText style={styles.buttonText}>Next</ThemedText>
         </TouchableOpacity>
       </Link>
@@ -29,24 +61,31 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 15,
+    textAlign: 'center',
   },
   description: {
     fontSize: 18,
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: 50,
+    lineHeight: 24,
   },
   button: {
-    backgroundColor: '#007bff',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 8,
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+    borderRadius: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
   },
   buttonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
-  },
+  }
+
 });

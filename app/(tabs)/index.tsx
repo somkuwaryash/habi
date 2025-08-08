@@ -5,7 +5,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import HabitItem from '@/components/HabitItem';
-import { Habit } from '@/app/constants/types';
+import { Habit } from '@/src/types/types';
 import { useHabits } from '@/hooks/useHabits';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CalendarStrip from 'react-native-calendar-strip';

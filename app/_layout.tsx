@@ -1,6 +1,15 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
+
+export { ErrorBoundary } from 'expo-router';
+
+export const unstable_settings = {
+  // Ensure that reloading on `/modal` keeps a back button present.
+  initialRouteName: '(tabs)',
+  // Exclude types.ts from being treated as a route
+  exclude: ['constants/types.ts'],
+};
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { useEffect, useState } from 'react';
@@ -18,11 +27,28 @@ export default function RootLayout() {
   const [isAppReady, setIsAppReady] = useState(false);
 
   useEffect(() => {
+    const clearOnboardingData = async () => {
+      try {
+        await AsyncStorage.removeItem('onboardingComplete');
+        await AsyncStorage.removeItem('userName');
+        console.log('Onboarding data cleared for testing.');
+      } catch (e) {
+        console.error('Failed to clear onboarding data from AsyncStorage', e);
+      }
+    };
+    // Call this once for testing, then remove it.
+    // clearOnboardingData();
+
+
     const checkOnboardingStatus = async () => {
       try {
-        const value = await AsyncStorage.getItem('onboardingComplete');
-        if (value === 'true') {
+        const onboardingValue = await AsyncStorage.getItem('onboardingComplete');
+        const userNameValue = await AsyncStorage.getItem('userName');
+
+        if (onboardingValue === 'true' && userNameValue) {
           setOnboardingComplete(true);
+        } else {
+          setOnboardingComplete(false);
         }
       } catch (e) {
         console.error('Failed to load onboarding status from AsyncStorage', e);

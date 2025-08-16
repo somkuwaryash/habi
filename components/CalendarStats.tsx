@@ -1,27 +1,49 @@
-import React, { useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useMemo, useState, useEffect } from 'react';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useHabits } from '@/hooks/useHabits';
 import { HabitCompletion } from '@/src/types/types';
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 interface CalendarStatsProps {
   habitId: string;
 }
 
 const CalendarStats: React.FC<CalendarStatsProps> = ({ habitId }) => {
-  const { habitCompletions } = useHabits();
+  const { habitCompletions, toggleHabit } = useHabits();
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? 'light'];
+  const [userName, setUserName] = useState<string>('');
 
   const completedDatesForHabit = useMemo(() => {
     return habitCompletions
       .filter((completion) => completion.habitId === habitId)
       .map((completion) => completion.date);
   }, [habitCompletions, habitId]);
+  const totalCompletionsAllTime = useMemo(() => completedDatesForHabit.length, [completedDatesForHabit]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem('userName');
+        if (mounted && stored) setUserName(stored);
+      } catch (e) {
+        // noop
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
   const daysOfWeek = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   const today = useMemo(() => new Date(), []);
-  const currentMonth = useMemo(() => today.getMonth(), [today]);
-  const currentYear = useMemo(() => today.getFullYear(), [today]);
+  const [visibleMonth, setVisibleMonth] = useState(today.getMonth());
+  const [visibleYear, setVisibleYear] = useState(today.getFullYear());
 
   const getDaysInMonth = (year: number, month: number) => {
     return new Date(year, month + 1, 0).getDate();
@@ -31,8 +53,8 @@ const CalendarStats: React.FC<CalendarStatsProps> = ({ habitId }) => {
     return new Date(year, month, 1).getDay(); // 0 for Sunday, 1 for Monday, etc.
   };
 
-  const daysInCurrentMonth = getDaysInMonth(currentYear, currentMonth);
-  const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
+  const daysInCurrentMonth = getDaysInMonth(visibleYear, visibleMonth);
+  const firstDayOfMonth = getFirstDayOfMonth(visibleYear, visibleMonth);
 
   const calendarDays = useMemo(() => {
     const days = [];
@@ -53,9 +75,29 @@ const CalendarStats: React.FC<CalendarStatsProps> = ({ habitId }) => {
 
   const isDayCompleted = (day: number | null) => {
     if (day === null) return false;
-    const date = new Date(currentYear, currentMonth, day);
+    const date = new Date(visibleYear, visibleMonth, day);
     return formattedCompletedDates.has(date.toDateString());
   };
+
+  // Monthly summary metrics (visible month)
+  const completionsThisMonth = useMemo(() => {
+    let count = 0;
+    completedDatesForHabit.forEach((ds) => {
+      const d = new Date(ds);
+      if (d.getFullYear() === visibleYear && d.getMonth() === visibleMonth) {
+        // If viewing current month, only count up to today
+        if (
+          visibleYear === today.getFullYear() &&
+          visibleMonth === today.getMonth()
+        ) {
+          if (d.getDate() <= today.getDate()) count += 1;
+        } else {
+          count += 1;
+        }
+      }
+    });
+    return count;
+  }, [completedDatesForHabit, visibleMonth, visibleYear, today]);
 
   const calculateCurrentStreak = (dates: string[]) => {
     if (dates.length === 0) return 0;
@@ -104,103 +146,277 @@ const CalendarStats: React.FC<CalendarStatsProps> = ({ habitId }) => {
     return tempStreak;
   };
 
-  const currentStreak = calculateCurrentStreak(completedDatesForHabit);
+  const { currentStreak, longestStreak } = useMemo(() => {
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    const toDayId = (d: Date) => {
+      const nd = new Date(d);
+      nd.setHours(0, 0, 0, 0);
+      return Math.floor(nd.getTime() / MS_PER_DAY);
+    };
 
-  const monthName = today.toLocaleString('default', { month: 'long' });
+    const todayId = toDayId(today);
+    // Consider only days up to today (ignore any future dates)
+    const idsUpToToday = completedDatesForHabit
+      .map((ds) => {
+        const d = new Date(ds);
+        d.setHours(0, 0, 0, 0);
+        return Math.floor(d.getTime() / MS_PER_DAY);
+      })
+      .filter((id) => id <= todayId);
+    const dayIds = new Set<number>(idsUpToToday);
+
+    // Current streak: counts consecutive days up to today (or yesterday if today not done)
+    let cur = 0;
+    let startId: number | null = null;
+    if (dayIds.has(todayId)) startId = todayId;
+    else if (dayIds.has(todayId - 1)) startId = todayId - 1;
+    if (startId !== null) {
+      let id = startId;
+      while (dayIds.has(id)) {
+        cur++;
+        id -= 1;
+      }
+    }
+
+    // Longest streak: scan all sequences
+    let longest = 0;
+    for (const id of dayIds) {
+      if (!dayIds.has(id - 1)) {
+        let len = 1;
+        let next = id + 1;
+        while (dayIds.has(next)) {
+          len++;
+          next++;
+        }
+        if (len > longest) longest = len;
+      }
+    }
+
+    return { currentStreak: cur, longestStreak: longest };
+  }, [completedDatesForHabit, today]);
+
+  const monthName = new Date(visibleYear, visibleMonth, 1).toLocaleString('default', { month: 'long' });
+
+  const goPrevMonth = () => {
+    const m = visibleMonth - 1;
+    if (m < 0) {
+      setVisibleMonth(11);
+      setVisibleYear(visibleYear - 1);
+    } else {
+      setVisibleMonth(m);
+    }
+  };
+
+  const goNextMonth = () => {
+    const m = visibleMonth + 1;
+    if (m > 11) {
+      setVisibleMonth(0);
+      setVisibleYear(visibleYear + 1);
+    } else {
+      setVisibleMonth(m);
+    }
+  };
+
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  const handleToggleDay = (day: number | null) => {
+    if (day === null) return;
+    const dateStr = `${visibleYear}-${pad(visibleMonth + 1)}-${pad(day)}`;
+    toggleHabit(habitId, dateStr);
+  };
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>{monthName} - {daysInCurrentMonth} days</ThemedText>
-      <View style={styles.daysOfWeekContainer}>
-        {daysOfWeek.map((day, index) => (
-          <ThemedText key={index} style={styles.dayOfWeekText}>{day}</ThemedText>
-        ))}
-      </View>
-      <View style={styles.calendarGrid}>
-        {calendarDays.map((day, index) => (
-          <View key={index} style={[styles.dayCell, day !== null && isDayCompleted(day) && styles.completedDayCell]}>
-            <ThemedText style={[styles.dayText, day !== null && isDayCompleted(day) && styles.completedDayText]}>
-              {day}
-            </ThemedText>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.legendContainer}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, styles.completedDot]} />
-          <ThemedText style={styles.legendText}>All done</ThemedText>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.navRow}>
+          <TouchableOpacity style={styles.navButton} onPress={goPrevMonth}>
+            <Text style={[styles.navButtonText, { color: theme.text }]}>{'\u2039'}</Text>
+          </TouchableOpacity>
+          <ThemedText type="title" style={[styles.monthTitle, { color: theme.text }]}>
+            {monthName} {visibleYear}
+          </ThemedText>
+          <TouchableOpacity style={styles.navButton} onPress={goNextMonth}>
+            <Text style={[styles.navButtonText, { color: theme.text }]}>{'\u203A'}</Text>
+          </TouchableOpacity>
         </View>
+        <View style={styles.daysOfWeekContainer}>
+          {daysOfWeek.map((day, index) => (
+            <View key={index} style={styles.headerCell}>
+              <ThemedText style={[styles.dayOfWeekText, { color: theme.muted }]}>{day}</ThemedText>
+            </View>
+          ))}
+        </View>
+        <View style={styles.calendarGrid}>
+        {calendarDays.map((day, index) => {
+          if (day === null) return <View key={index} style={styles.dayCell} />;
+          const isToday = new Date(visibleYear, visibleMonth, day).toDateString() === today.toDateString();
+          const completed = isDayCompleted(day);
+          return (
+            <View key={index} style={styles.dayCell}>
+              <TouchableOpacity activeOpacity={0.7} onPress={() => handleToggleDay(day)}
+                style={[
+                  styles.dayBubble,
+                  { borderColor: theme.border },
+                  completed && { backgroundColor: theme.success, borderColor: 'transparent' },
+                  isToday && { borderColor: theme.primary, borderWidth: 2 },
+                ]}
+              >
+                <ThemedText
+                  style={[
+                    styles.dayText,
+                    { color: theme.text },
+                    completed && { color: theme.primaryContrast, fontWeight: 'bold' },
+                  ]}
+                >
+                  {day}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
       </View>
 
-      <View style={styles.streakContainer}>
-        <ThemedText style={styles.streakNumber}>{currentStreak} days</ThemedText>
-        <ThemedText style={styles.streakText}>Your current streak is the best</ThemedText>
+        <View style={styles.summaryRow}>
+        <View style={[styles.summaryCard, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+          <ThemedText style={[styles.summaryValue, { color: theme.text }]}>{completionsThisMonth}</ThemedText>
+          <ThemedText style={[styles.summaryLabel, { color: theme.muted }]}>Completions this month</ThemedText>
+        </View>
+        {/* Removed completion rate card as requested */}
+        </View>
+        <View style={styles.legendContainer}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: theme.success }]} />
+          <ThemedText style={[styles.legendText, { color: theme.muted }]}>Completed</ThemedText>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendRing, { borderColor: theme.primary }]} />
+          <ThemedText style={[styles.legendText, { color: theme.muted }]}>Today</ThemedText>
+        </View>
+        </View>
+
+        <View style={styles.streakRow}>
+        <View style={[styles.streakCard, { backgroundColor: theme.primary }]}>
+          <Text style={[styles.streakNumber, { color: theme.primaryContrast }]}>
+            {currentStreak} days
+          </Text>
+          <Text style={[styles.streakLabel, { color: theme.primaryContrast, fontWeight: '600' }]}>Current streak</Text>
+        </View>
+        <View style={[styles.streakCard, styles.streakCardBelow, { backgroundColor: theme.primary }]}>
+          <Text style={[styles.streakNumber, { color: theme.primaryContrast }]}>
+            {longestStreak} days
+          </Text>
+          <Text style={[styles.streakLabel, { color: theme.primaryContrast, fontWeight: '600' }]}>Longest streak</Text>
+        </View>
+        {/* Removed inline best-streak note; will show at bottom instead */}
       </View>
-    </ThemedView>
-  );
+      {currentStreak === longestStreak && (
+        <View style={styles.congratsContainer}>
+          <ThemedText style={[styles.congratsText, { color: theme.text }]}> 
+            🎊 Congrats {userName || 'buddy'}!{'\n'}
+            Your current streak is the best.
+          </ThemedText>
+        </View>
+      )}
+    </ScrollView>
+  </ThemedView>
+);
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 20,
-    padding: 15,
-    backgroundColor: '#2C2C2C', // Dark background for the calendar
-    borderRadius: 10,
-    width: '100%',
+    flex: 1,
+    padding: 0,
+    paddingBottom: 0,
+    borderRadius: 0,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 24,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#E0E0E0',
-    marginBottom: 15,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  navButton: {
+    width: 40,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  navButtonText: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  monthTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
     textAlign: 'center',
   },
   daysOfWeekContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 10,
+    justifyContent: 'flex-start',
+    flexWrap: 'nowrap',
+    marginBottom: 8,
+  },
+  headerCell: {
+    flexBasis: '14.2857%',
+    minWidth: '14.2857%',
+    maxWidth: '14.2857%',
+    alignItems: 'center',
   },
   dayOfWeekText: {
-    color: '#A0A0A0',
     fontWeight: 'bold',
-    width: 30,
     textAlign: 'center',
   },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
+    width: '100%',
   },
   dayCell: {
-    width: 30,
+    flexBasis: '14.2857%',
+    minWidth: '14.2857%',
+    maxWidth: '14.2857%',
     height: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    margin: 4,
     borderRadius: 15,
+    marginBottom: 8,
   },
-  completedDayCell: {
-    backgroundColor: '#4CAF50', // Green for completed days
+  dayBubble: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    backgroundColor: 'transparent',
   },
   dayText: {
-    color: '#E0E0E0',
     fontSize: 14,
   },
   completedDayText: {
-    color: '#FFFFFF',
     fontWeight: 'bold',
   },
   legendContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
-    marginBottom: 10,
+    marginTop: 16,
+    marginBottom: 12,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 10,
+    marginHorizontal: 12,
   },
   legendDot: {
     width: 10,
@@ -208,32 +424,79 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginRight: 5,
   },
-  completedDot: {
-    backgroundColor: '#4CAF50',
-  },
-  someDoneDot: {
-    backgroundColor: '#FFC107', // Example for 'some done'
-  },
   legendText: {
-    color: '#A0A0A0',
     fontSize: 12,
   },
-  streakContainer: {
-    backgroundColor: '#FF9800', // Orange background for streak
-    padding: 20,
-    borderRadius: 10,
+  legendRing: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    marginRight: 5,
+    backgroundColor: 'transparent',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'stretch',
+    marginTop: 12,
+  },
+  summaryCard: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
     alignItems: 'center',
-    marginTop: 20,
+  },
+  summaryCardRight: {
+    marginLeft: 12,
+  },
+  summaryValue: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  summaryLabel: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  streakRow: {
+    marginTop: 16,
+  },
+  streakCard: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 80,
+  },
+  streakCardBelow: {
+    marginTop: 12,
   },
   streakNumber: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    lineHeight: 40,
   },
-  streakText: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    marginTop: 5,
+  streakLabel: {
+    fontSize: 14,
+    marginTop: 6,
+  },
+  streakBestText: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  congratsContainer: {
+    marginTop: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  congratsText: {
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '600',
   },
 });
 

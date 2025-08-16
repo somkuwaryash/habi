@@ -10,13 +10,11 @@ export default function HabitDetailsScreen() {
   const { id } = useLocalSearchParams();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    // <SafeAreaView style={styles.safeArea}>
       <ThemedView style={styles.container}>
-        <ThemedText type="title">Habit Details</ThemedText>
-        <ThemedText>Habit ID: {id}</ThemedText>
         <CalendarStats habitId={id as string} />
       </ThemedView>
-    </SafeAreaView>
+    // </SafeAreaView>
   );
 }
 

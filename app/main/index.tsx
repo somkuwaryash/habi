@@ -27,14 +27,13 @@ export default function HomeScreen() {
     cancelEditingHabit,
     habitCompletions,
   } = useHabits();
+
   const { colorScheme, toggleColorScheme } = useThemeController();
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const theme = Colors[(colorScheme ?? 'light') as 'light' | 'dark'];
 
   const filteredHabits = useMemo(() => {
-    // Reverting to show all habits as per user's request.
-    // Future iterations will implement more complex frequency logic.
     return habits;
   }, [habits, selectedDate]);
 
@@ -46,11 +45,7 @@ export default function HomeScreen() {
         <ThemedView style={styles.headerContainer}>
           <ThemedText type="title" style={styles.title}>My Habits</ThemedText>
           <TouchableOpacity onPress={toggleTheme} style={styles.themeToggle}>
-            <Ionicons
-              name={colorScheme === 'dark' ? 'sunny' : 'moon'}
-              size={24}
-              color={theme.primary}
-            />
+            <Ionicons name={colorScheme === 'dark' ? 'sunny' : 'moon'} size={24} color={theme.primary} />
           </TouchableOpacity>
         </ThemedView>
 

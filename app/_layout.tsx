@@ -6,19 +6,20 @@ export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
+  initialRouteName: 'onboarding',
   // Exclude types.ts from being treated as a route
   exclude: ['constants/types.ts'],
 };
 import { StatusBar } from 'expo-status-bar';
+import { TouchableOpacity } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import 'react-native-reanimated';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { ColorSchemeProvider } from '@/providers/ColorSchemeProvider';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
@@ -36,9 +37,7 @@ export default function RootLayout() {
         console.error('Failed to clear onboarding data from AsyncStorage', e);
       }
     };
-    // Call this once for testing, then remove it.
     // clearOnboardingData();
-
 
     const checkOnboardingStatus = async () => {
       try {
@@ -64,16 +63,36 @@ export default function RootLayout() {
   }
 
   return (
+    <ColorSchemeProvider>
+      <RootLayoutNav onboardingComplete={onboardingComplete} />
+    </ColorSchemeProvider>
+  );
+}
+
+function RootLayoutNav({ onboardingComplete }: { onboardingComplete: boolean }) {
+  const colorScheme = useColorScheme();
+  return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         {onboardingComplete ? (
-          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="homescreen" />
         ) : (
           <Stack.Screen name="onboarding" />
         )}
-        {/* Explicitly show header for habit-details screen */}
-        <Stack.Screen name="habit-details/[id]" options={{ headerShown: true, title: 'Habit Stats' }} />
+        <Stack.Screen
+          name="habit-details/[id]"
+          options={({ navigation }) => ({
+            headerShown: true,
+            title: 'Habit Stats',
+            headerBackTitle: '',
+            headerLeft: ({ tintColor }) => (
+              <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
+                <Ionicons name="chevron-back" size={24} color={tintColor ?? undefined} />
+              </TouchableOpacity>
+            ),
+          })}
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
     </ThemeProvider>

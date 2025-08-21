@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PRODUCT_IDS } from '@/constants/iap';
+// IAP product IDs are not used while IAP is disabled.
 
 const PREMIUM_KEY = 'iap.premium.active';
 
@@ -18,6 +18,9 @@ export type UseIAP = {
 };
 
 export function useIAP(): UseIAP {
+  // IAP is temporarily disabled to allow Android builds while we migrate away from expo-in-app-purchases.
+  // Set to true and implement a supported IAP library (e.g., react-native-iap) when ready.
+  const IAP_ENABLED = false;
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -62,37 +65,14 @@ export function useIAP(): UseIAP {
     isMounted.current = true;
 
     const init = async () => {
-      if (Platform.OS === 'web' || Constants.appOwnership === 'expo') {
-        // IAP not supported on web or in Expo Go client
+      // Skip IAP entirely on web, Expo Go, or when disabled.
+      if (Platform.OS === 'web' || Constants.appOwnership === 'expo' || !IAP_ENABLED) {
+        await loadPremiumFlag();
         setLoading(false);
         return;
       }
-      try {
-        const IAP = await import('expo-in-app-purchases');
-        iapRef.current = IAP;
-        await IAP.connectAsync();
-        await loadPremiumFlag();
-        await refreshProducts();
-
-        IAP.setPurchaseListener((result: any) => {
-          const { responseCode, results, errorCode } = result || {};
-          if (!isMounted.current) return;
-          if (responseCode === iapRef.current?.IAPResponseCode?.OK && results) {
-            handlePurchaseResults(results);
-          } else if (responseCode === iapRef.current?.IAPResponseCode?.USER_CANCELED) {
-            setIsProcessing(false);
-          } else if (responseCode === iapRef.current?.IAPResponseCode?.DEFERRED) {
-            setIsProcessing(false);
-          } else if (responseCode === iapRef.current?.IAPResponseCode?.ERROR) {
-            setIsProcessing(false);
-            setError(`Purchase error: ${errorCode}`);
-          }
-        });
-      } catch (e: any) {
-        setError(e?.message ?? 'Failed to initialize IAP');
-      } finally {
-        if (isMounted.current) setLoading(false);
-      }
+      // Placeholder for future IAP implementation
+      setLoading(false);
     };
 
     init();
@@ -108,63 +88,35 @@ export function useIAP(): UseIAP {
 
   const refreshProducts = useCallback(async () => {
     try {
-      const IAP = iapRef.current;
-      if (!IAP) return;
-      const { responseCode, results } = await IAP.getProductsAsync(PRODUCT_IDS);
-      if (responseCode === IAP.IAPResponseCode.OK && results) {
-        setProducts(results);
-      }
+      if (!IAP_ENABLED) return;
+      // Placeholder for future IAP implementation
     } catch (e: any) {
       setError(e?.message ?? 'Failed to load products');
     }
   }, []);
 
   const buySubscription = useCallback(async () => {
-    const IAP = iapRef.current;
-    if (!IAP) {
-      setError('In-app purchases are not available in this client. Use a dev or production build.');
+    if (!IAP_ENABLED) {
+      setError('In-app purchases are currently unavailable.');
       return;
     }
     if (Platform.OS === 'web') {
       setError('In-app purchases are not available on web');
       return;
     }
-    if (!products.length) await refreshProducts();
-    const productId = (products[0]?.productId) || PRODUCT_IDS[0];
-    try {
-      setIsProcessing(true);
-      await IAP.purchaseItemAsync(productId);
-      // Result handled in listener
-    } catch (e: any) {
-      setIsProcessing(false);
-      setError(e?.message ?? 'Failed to start purchase');
-    }
+    // Placeholder for future IAP implementation
   }, [products, refreshProducts]);
 
   const restorePurchases = useCallback(async () => {
-    const IAP = iapRef.current;
-    if (!IAP) {
-      setError('In-app purchases are not available in this client. Use a dev or production build.');
+    if (!IAP_ENABLED) {
+      setError('In-app purchases are currently unavailable.');
       return;
     }
     if (Platform.OS === 'web') {
       setError('In-app purchases are not available on web');
       return;
     }
-    try {
-      setIsProcessing(true);
-      const { responseCode, results } = await IAP.getPurchaseHistoryAsync();
-      if (responseCode === IAP.IAPResponseCode.OK && results) {
-        // If any active subscription/non-consumable appears, mark premium
-        if (results.length > 0) {
-          await handlePurchaseResults(results);
-        }
-      }
-    } catch (e: any) {
-      setError(e?.message ?? 'Failed to restore purchases');
-    } finally {
-      setIsProcessing(false);
-    }
+    // Placeholder for future IAP implementation
   }, [handlePurchaseResults]);
 
   return useMemo(
